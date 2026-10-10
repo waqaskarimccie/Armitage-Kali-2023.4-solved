@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<!-- NW Timer App v2 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Networkwalks Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Hide third-party chat widgets (Tawk.to / Tidio) on this page */
+  #tidio-chat, #tidio-chat-iframe,
+  .tawk-min-container, .tawk-bubble-container,
+  iframe[src*="tawk.to"], div[id^="tawk-"] { display:none !important; }
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Oswald','Segoe UI',Arial,sans-serif;
+    color:#fff; background:#06070d; overflow:hidden;
+    display:flex; flex-direction:column; height:100vh; height:100dvh;
+    /* theme defaults (Break) */
+    --core:#fff3c4; --c2:#ffb300; --c3:#ff7a00; --accent:#ffe49a;
+    --bgA:rgba(120,50,10,.50); --bgB:rgba(8,3,2,.93);
+  }
+  body[data-screen="welcome"]  { --core:#e8fbff; --c2:#19d3ff; --c3:#0a6cff; --accent:#8ef0ff; --bgA:rgba(10,90,130,.50); --bgB:rgba(3,7,18,.93); }
+  body[data-screen="break"]    { --core:#fff3c4; --c2:#ffb300; --c3:#ff7a00; --accent:#ffe49a; --bgA:rgba(120,50,10,.50); --bgB:rgba(8,3,2,.93); }
+  body[data-screen="questions"]{ --core:#ffe9ff; --c2:#ff4fd8; --c3:#8a2bff; --accent:#ffb8f0; --bgA:rgba(95,20,120,.50); --bgB:rgba(8,2,16,.93); }
+  body[data-screen="end"]      { --core:#eafff3; --c2:#2bff88; --c3:#00a859; --accent:#ffe49a; --bgA:rgba(8,95,60,.50); --bgB:rgba(2,9,6,.93); }
+
+  /* Background: brick photo (falls back to plain colour if it fails to load) + themed tint */
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:#06070d url("https://networkwalks.com/wp-content/uploads/2026/07/brick-frame-neon-background-texture_.jpg") center/cover no-repeat;}
+  .bg::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse 85% 75% at 50% 42%, var(--bgA) 0%, var(--bgB) 100%);}
+
+  /* ===== Stage: all text sizes use container units so they fit the space above the control bar ===== */
+  .stage{position:relative;z-index:1;flex:1;min-height:0;width:100%;container-type:size;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    overflow:hidden;padding:0 2cqw;}
+  .brand{height:5.2cqh;margin-bottom:1.4cqh;display:flex;align-items:center;justify-content:center;opacity:.92;}
+  .brand img{height:100%;filter:drop-shadow(0 0 .8cqh rgba(255,255,255,.35));}
+  .brand .brandtxt{display:none;font-size:4cqh;font-weight:700;letter-spacing:.2em;color:var(--accent);}
+  .screen{display:none;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:100%;}
+  .screen.active{display:flex;}
+
+  /* Neon text: bold + tight glow so it stays crisp after Zoom's video compression */
+  .neon{font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.05;
+    color:var(--core);-webkit-text-stroke:.012em var(--core);
+    text-shadow:0 0 .04em var(--core),0 0 .13em var(--c2),0 0 .32em var(--c3);}
+  .plain{font-weight:700;color:#fff;line-height:1.2;text-shadow:0 .08em .3em rgba(0,0,0,.9);}
+  .accent{color:var(--accent);}
+  .frame{border:.5cqw solid var(--c2);border-radius:999px;padding:.4cqh 3.4cqw;margin-bottom:1.8cqh;
+    box-shadow:0 0 1.4cqw var(--c2),0 0 3.6cqw var(--c3),inset 0 0 1.4cqw var(--c3);background:rgba(0,0,0,.28);}
+  .h-xl{font-size:min(12.5cqw,15cqh);}
+  .h-lg{font-size:min(8cqw,10.5cqh);}
+  .h-md{font-size:min(5cqw,6.4cqh);}
+  .t-lg{font-size:min(4.2cqw,5.4cqh);}
+  .t-md{font-size:min(3.6cqw,4.6cqh);}
+  .mt{margin-top:1.3cqh;}
+  .digits{font-size:min(19cqw,27cqh);font-feature-settings:"tnum";font-variant-numeric:tabular-nums;margin:.2cqh 0;}
+  .sublabel{font-size:min(3.6cqw,5cqh);font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent);text-shadow:0 0 .5em var(--c2),0 .08em .25em #000;min-height:1.3em;}
+  .warn{--core:#ffe3dc;--c2:#ff3b1a;--c3:#d10000;}
+  .flash{animation:neonFlash 1s infinite;}
+  @keyframes neonFlash{0%,100%{opacity:1;}50%{opacity:.28;}}
+  @media (prefers-reduced-motion:reduce){.flash{animation:none;}}
+
+  #wTimerBox{display:none;flex-direction:column;align-items:center;margin-top:1.6cqh;}
+  #wTimerBox.on{display:flex;}
+
+  .qmark{font-size:min(36cqh,44cqw);line-height:.95;}
+
+  /* WhatsApp card */
+  .wa-card{margin-top:2cqh;display:flex;align-items:center;justify-content:center;gap:2.4cqw;
+    padding:1.6cqh 3.4cqw;border-radius:2.6cqh;background:rgba(2,12,7,.62);
+    border:.4cqw solid #25d366;box-shadow:0 0 2cqw rgba(37,211,102,.55),inset 0 0 1.6cqw rgba(37,211,102,.25);}
+  .wa-logo{width:min(11cqw,16cqh);height:min(11cqw,16cqh);flex:none;border-radius:50%;background:#25d366;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 0 1.6cqw rgba(37,211,102,.8);}
+  .wa-logo svg{width:68%;height:68%;fill:#fff;}
+  .wa-txt{display:flex;flex-direction:column;align-items:flex-start;text-align:left;}
+  .wa-cap{font-size:min(3cqw,4cqh);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);}
+  .wa-num{font-size:min(9.4cqw,12.5cqh);font-weight:700;letter-spacing:.03em;white-space:nowrap;line-height:1.05;color:#fff;
+    text-shadow:0 0 .1em #25d366,0 0 .3em rgba(37,211,102,.75),0 .05em .15em #000;}
+
+  /* ===== Control bar (always visible) ===== */
+  .dock{position:relative;z-index:3;flex:none;background:rgba(7,9,16,.92);border-top:2px solid var(--c2);
+    padding:8px 12px 6px;display:flex;flex-direction:column;gap:7px;font-size:14px;}
+  .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+  .row.pop{display:none;padding:6px 8px;border:1px dashed rgba(255,255,255,.3);border-radius:8px;background:rgba(255,255,255,.05);}
+  .row.pop.open{display:flex;}
+  .sp{flex:1;}
+  .lbl{color:rgba(255,255,255,.7);font-weight:600;letter-spacing:.04em;}
+  button,select,input{font-family:inherit;font-size:14px;}
+  button{font-weight:600;letter-spacing:.3px;padding:8px 13px;border-radius:7px;cursor:pointer;color:#fff;
+    border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);transition:background .12s,transform .08s;}
+  button:hover{background:rgba(255,255,255,.22);}
+  button:active{transform:translateY(1px);}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px;}
+  button.sel{background:var(--c2);border-color:var(--core);color:#000;box-shadow:0 0 12px var(--c2);}
+  button.big{font-size:17px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 26px;border-width:2px;}
+  button#playBtn{border-color:#ffb300;box-shadow:0 0 12px rgba(255,179,0,.5);}
+  button#resetBtn{border-color:#ff5a3d;box-shadow:0 0 12px rgba(255,59,26,.4);}
+  button:disabled{opacity:.4;cursor:default;}
+  kbd{font-family:inherit;font-size:11px;opacity:.7;border:1px solid currentColor;border-radius:3px;padding:0 4px;margin-left:5px;}
+  button.sel kbd{opacity:.8;}
+  input[type=number],input[type=time],input[type=text],select{padding:7px 9px;border-radius:6px;color:#fff;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);}
+  select option{color:#000;}
+  input[type=number]{width:84px;} input[type=time]{width:130px;color-scheme:dark;} #presetsIn{width:150px;} #headIn{width:190px;}
+  .msg{color:#ffb4a6;font-weight:600;}
+  .radios{display:flex;flex-wrap:wrap;gap:10px;}
+  .radio{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;cursor:pointer;
+    border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.07);font-weight:700;font-size:16px;}
+  .radio input{width:18px;height:18px;accent-color:#25d366;}
+  .radio.sel{border-color:#25d366;background:rgba(37,211,102,.22);box-shadow:0 0 10px rgba(37,211,102,.5);}
+  .hint{font-size:12px;color:rgba(255,255,255,.62);display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+  .hint a{color:var(--accent);text-decoration:none;} .hint a:hover{color:#fff;}
+  .hint b{color:rgba(255,255,255,.85);}
+  body[data-wt="off"] .needTimer{display:none !important;}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+</style>
+</head>
+<body data-screen="welcome" data-wt="off">
+
+<div class="bg"></div>
+
+<main class="stage" id="stage">
+  <div class="brand">
+    <img src="https://networkwalks.com/wp-content/uploads/2026/06/Network-Walks-Logo-v4.png" alt="Networkwalks Academy"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span class="brandtxt">NETWORKWALKS ACADEMY</span>
+  </div>
+
+  <!-- WELCOME -->
+  <section class="screen active" id="sc-welcome" aria-label="Welcome screen">
+    <div class="frame"><div class="neon h-xl">Welcome</div></div>
+    <div class="neon h-md">to today's interactive session</div>
+    <div class="plain t-lg mt">Please stay connected.</div>
+    <div class="plain t-lg accent mt">We will start the session shortly.</div>
+    <div id="wTimerBox">
+      <div class="sublabel" id="wLabel">Session starts in</div>
+      <div class="neon digits" id="wTime">05:00</div>
+    </div>
+  </section>
+
+  <!-- BREAK -->
+  <section class="screen" id="sc-break" aria-label="Break timer">
+    <div class="frame" id="bFrame"><div class="neon h-lg" id="bHead">Break Time</div></div>
+    <div class="sublabel" id="bSub">&nbsp;</div>
+    <div class="neon digits" id="bTime">15:00</div>
+  </section>
+
+  <!-- QUESTIONS -->
+  <section class="screen" id="sc-questions" aria-label="Questions time">
+    <div class="neon qmark">?</div>
+    <div class="neon h-lg">Questions Time</div>
+  </section>
+
+  <!-- END -->
+  <section class="screen" id="sc-end" aria-label="End screen">
+    <div class="frame"><div class="neon h-lg">Thank You!</div></div>
+    <div class="plain t-lg">for joining today's interactive session.</div>
+    <div class="plain t-lg accent">The session has just ended.</div>
+    <div class="plain t-md mt">We will continue our discussion on <span style="color:#4dff94">WhatsApp</span>.</div>
+    <div class="plain t-md">If you have any questions or comments, please contact the admin:</div>
+    <div class="wa-card">
+      <div class="wa-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+      </div>
+      <div class="wa-txt">
+        <div class="wa-cap">Admin WhatsApp</div>
+        <div class="wa-num" id="waNum">+27 766 222218</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ===== Controls ===== -->
+<div class="dock" id="dock">
+  <div class="row">
+    <button data-screen="welcome" class="sel">Welcome<kbd>W</kbd></button>
+    <button data-screen="break">Break<kbd>B</kbd></button>
+    <button data-screen="questions">Questions<kbd>Q</kbd></button>
+    <button data-screen="end">End<kbd>E</kbd></button>
+    <span class="sp"></span>
+    <label class="lbl" for="sound">Alarm</label>
+    <select id="sound" aria-label="Alarm sound">
+      <option value="bell">Bell</option><option value="chime">Chime</option>
+      <option value="beep">Beep</option><option value="digital">Digital</option>
+    </select>
+    <button id="testBtn">Test</button>
+    <button id="muteBtn" aria-pressed="false">Sound: On<kbd>M</kbd></button>
+    <button id="fsBtn">Fullscreen<kbd>F</kbd></button>
+    <button id="setBtn" aria-expanded="false">Settings</button>
+  </div>
+
+  <div class="row" id="ctxTimer">
+    <button id="playBtn" class="big needTimer">Play<kbd>Space</kbd></button>
+    <button id="resetBtn" class="big needTimer">Reset<kbd>R</kbd></button>
+    <button id="minusBtn" class="needTimer" title="Remove 1 minute (-)">&minus;1 min</button>
+    <button id="plusBtn" class="needTimer" title="Add 1 minute (+)">+1 min</button>
+    <span class="lbl" id="durLbl">Duration:</span>
+    <span class="row" id="presets" style="gap:6px"></span>
+    <button id="customBtn" class="needTimer">Custom</button>
+  </div>
+
+  <div class="row pop" id="customPop">
+    <span class="lbl">Minutes</span>
+    <input type="number" id="customMin" min="0.1" max="180" step="any" placeholder="e.g. 7.5" aria-label="Custom minutes">
+    <button id="customSet">Set</button>
+    <span class="lbl" style="margin-left:14px" id="atLbl">Back at</span>
+    <input type="time" id="atTime" aria-label="Target time">
+    <button id="atSet">Start</button>
+    <span class="msg" id="customMsg" role="alert"></span>
+  </div>
+
+  <div class="row pop" id="settingsPop">
+    <span class="lbl">Presets (minutes)</span>
+    <input type="text" id="presetsIn" placeholder="5, 10, 15" aria-label="Preset minutes, comma separated">
+    <span class="lbl" style="margin-left:14px">Break heading</span>
+    <input type="text" id="headIn" maxlength="24" placeholder="Break Time" aria-label="Break heading">
+    <button id="setSave">Save</button>
+    <button id="setDef">Restore defaults</button>
+    <span class="msg" id="setMsg" role="alert"></span>
+  </div>
+
+  <div class="row" id="ctxEnd" style="display:none">
+    <span class="lbl">Show on End screen (choose one):</span>
+    <div class="radios" role="radiogroup" aria-label="Admin WhatsApp number">
+      <label class="radio"><input type="radio" name="wa" value="0"> +27 766 222218 <kbd>1</kbd></label>
+      <label class="radio"><input type="radio" name="wa" value="1"> +27 785 000095 <kbd>2</kbd></label>
+    </div>
+  </div>
+
+  <div class="hint">
+    <span><b>Zoom tip:</b> tick &ldquo;Share computer sound&rdquo; when sharing your screen, or students won't hear the alarm.</span>
+    <span class="sp"></span>
+    <span>Shortcuts: <b>Space</b> play/pause &middot; <b>R</b> reset &middot; <b>+</b>/<b>&minus;</b> &plusmn;1 min</span>
+    <a href="https://www.networkwalks.com" target="_blank" rel="noopener">www.networkwalks.com</a>
+  </div>
+</div>
+
+<div class="sr-only" id="live" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+  var $=function(s,r){return (r||document).querySelector(s);};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+
+  var ADMINS=['+27 766 222218','+27 785 000095'];
+  var DEFAULT_PRESETS=[5,10,15], DEFAULT_HEAD='Break Time';
+  var BASE_TITLE='Networkwalks Academy';
+
+  /* ---------- storage (never throws) ---------- */
+  var store={
+    get:function(k,d){try{var v=localStorage.getItem('nwTimerV2.'+k);return v===null?d:JSON.parse(v);}catch(e){return d;}},
+    set:function(k,v){try{localStorage.setItem('nwTimerV2.'+k,JSON.stringify(v));}catch(e){}}
+  };
+  function cleanPresets(a){
+    if(!Array.isArray(a))return null;
+    var out=[];a.forEach(function(n){n=parseFloat(n);if(n>=0.1&&n<=180&&out.indexOf(n)<0)out.push(n);});
+    out.sort(function(a,b){return a-b;});
+    return out.length&&out.length<=6?out:null;
+  }
+
+  /* ---------- state ---------- */
+  var S={
+    screen:'welcome',
+    presets:cleanPresets(store.get('presets',null))||DEFAULT_PRESETS.slice(),
+    heading:String(store.get('heading',DEFAULT_HEAD)||DEFAULT_HEAD).slice(0,24),
+    wa:store.get('wa',0)===1?1:0,
+    sound:store.get('sound','bell'),
+    mute:!!store.get('mute',false)
+  };
+  var T={
+    welcome:{on:false,total:300,remaining:300,endAt:0,state:'idle',sel:5,atLabel:'',lastA:-1},
+    brk:    {on:true, total:900,remaining:900,endAt:0,state:'idle',sel:15,atLabel:'',lastA:-1}
+  };
+  function key(){return S.screen==='welcome'?'welcome':(S.screen==='break'?'brk':null);}
+
+  /* ---------- helpers ---------- */
+  function pad(n){return (n<10?'0':'')+n;}
+  function fmt(s){return pad(Math.floor(s/60))+':'+pad(s%60);}
+  function rem(t){return t.state==='running'?Math.max(0,Math.ceil((t.endAt-Date.now())/1000)):t.remaining;}
+  function clock12(d){var h=d.getHours(),m=d.getMinutes(),ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+pad(m)+' '+ap;}
+  var live=$('#live');
+  function announce(msg){live.textContent='';setTimeout(function(){live.textContent=msg;},60);}
+
+  /* ---------- audio / alarm ---------- */
+  var ac=null,alarm=null;
+  function ensureAudio(){
+    try{
+      if(!ac){var C=window.AudioContext||window.webkitAudioContext;if(C)ac=new C();}
+      if(ac&&ac.state==='suspended')ac.resume();
+    }catch(e){}
+  }
+  function tone(dest,type,f,t,d,v){
+    var o=ac.createOscillator(),g=ac.createGain();
+    o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(v,t+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g);g.connect(dest);o.start(t);o.stop(t+d+0.05);
+  }
+  var SOUNDS={
+    beep:function(m,t){[0,.35,.7].forEach(function(x){tone(m,'sine',880,t+x,.3,.3);});},
+    bell:function(m,t){tone(m,'sine',660,t,1.6,.35);tone(m,'sine',1320,t,1.1,.14);tone(m,'sine',990,t+.65,1.4,.3);},
+    chime:function(m,t){[523.25,659.25,783.99,1046.5].forEach(function(f,i){tone(m,'triangle',f,t+i*.25,.7,.25);});},
+    digital:function(m,t){for(var i=0;i<4;i++)tone(m,'square',1000,t+i*.18,.1,.1);}
+  };
+  function playAlarm(preview){
+    stopAlarm();
+    if(S.mute&&!preview)return;
+    ensureAudio();if(!ac)return;
+    var master=ac.createGain();master.gain.value=1;master.connect(ac.destination);
+    var t0=ac.currentTime+0.05,rounds=preview?1:5,fn=SOUNDS[S.sound]||SOUNDS.bell;
+    for(var r=0;r<rounds;r++)fn(master,t0+r*2.4);
+    alarm={master:master};
+  }
+  function stopAlarm(){
+    if(alarm){try{alarm.master.disconnect();}catch(e){}alarm=null;}
+  }
+
+  /* ---------- timer engine (timestamp based, so it never drifts) ---------- */
+  function setDuration(k,min,sel){
+    var t=T[k];stopAlarm();
+    t.total=Math.max(1,Math.round(min*60));t.remaining=t.total;t.state='idle';t.sel=sel;t.atLabel='';t.lastA=-1;
+    if(k==='welcome')t.on=true;
+    render();
+  }
+  function start(k){
+    var t=T[k];stopAlarm();ensureAudio();
+    if(t.state==='done'){t.remaining=t.total;}
+    t.state='running';t.endAt=Date.now()+t.remaining*1000;t.lastA=-1;
+    render();announce('Timer started');
+  }
+  function pause(k){var t=T[k];t.remaining=rem(t);t.state='paused';render();announce('Paused');}
+  function toggle(k){
+    var t=T[k];
+    if(!t.on)return;
+    if(t.state==='running')pause(k);else start(k);
+  }
+  function reset(k){
+    var t=T[k];stopAlarm();
+    t.remaining=t.total;t.state='idle';t.lastA=-1;
+    if(t.atLabel){t.atLabel='';t.sel='custom';}
+    render();
+  }
+  function adjust(k,deltaSec){
+    var t=T[k];if(!t.on||t.state==='done')return;
+    if(t.state==='running'){
+      var r=rem(t)+deltaSec;if(r<5)r=5;
+      t.endAt=Date.now()+r*1000;
+    }else{
+      t.remaining=Math.max(5,t.remaining+deltaSec);
+    }
+    t.total=Math.max(5,t.total+deltaSec);
+    t.sel='custom';t.atLabel='';
+    render();
+  }
+  function finish(k){
+    var t=T[k];t.state='done';t.remaining=0;
+    render();playAlarm(false);announce(k==='welcome'?'Starting now':'Time is up');
+  }
+  function tick(){
+    var now=Date.now();
+    ['welcome','brk'].forEach(function(k){
+      var t=T[k];
+      if(t.state==='running'){
+        if(now>=t.endAt){finish(k);return;}
+        var r=rem(t);
+        if(k===key()&&r!==t.lastA&&(r%60===0||r===30||r===10)){
+          t.lastA=r;
+          announce(r>=60?(r/60)+(r===60?' minute':' minutes')+' remaining':r+' seconds remaining');
+        }
+      }
+    });
+    renderDisplay();
+  }
+
+  /* ---------- rendering ---------- */
+  function renderDisplay(){
+    var w=T.welcome,b=T.brk;
+    // welcome
+    var wr=rem(w);
+    $('#wTime').textContent=fmt(wr);
+    $('#wLabel').textContent=w.state==='done'?'Starting now!':(w.state==='paused'?'Paused':(w.atLabel?'Starting at '+w.atLabel:'Session starts in'));
+    var wWarn=(w.state==='running'||w.state==='paused')&&wr<=60||w.state==='done';
+    $('#wTime').classList.toggle('warn',wWarn);
+    $('#wTime').classList.toggle('flash',w.state==='done');
+    $('#wLabel').classList.toggle('flash',w.state==='done');
+    // break
+    var br=rem(b);
+    $('#bTime').textContent=fmt(br);
+    var head=b.state==='done'?"Time's Up!":S.heading;
+    var hEl=$('#bHead');hEl.textContent=head;
+    hEl.style.fontSize='calc(min(8cqw,10.5cqh) * '+Math.min(1,12/Math.max(1,head.length)).toFixed(3)+')';
+    $('#bSub').textContent=b.state==='done'?'Back to session':
+      (b.state==='paused'?'Paused':(b.state==='running'?(b.atLabel?'Back at '+b.atLabel:'Will be back in'):' '));
+    var bWarn=(b.state==='running'||b.state==='paused')&&br<=60||b.state==='done';
+    $('#bTime').classList.toggle('warn',bWarn);
+    $('#bTime').classList.toggle('flash',b.state==='done');
+    $('#bFrame').classList.toggle('flash',b.state==='done');
+    $('#bFrame').classList.toggle('warn',b.state==='done');
+    $('#bHead').classList.toggle('warn',b.state==='done');
+    // tab title
+    var title=BASE_TITLE;
+    if(S.screen==='welcome')title=(w.on&&w.state!=='idle'?fmt(wr)+' · ':'')+'Welcome · '+BASE_TITLE;
+    else if(S.screen==='break')title=(b.state!=='idle'?fmt(br)+' · ':'')+head;
+    else if(S.screen==='questions')title='Questions Time · '+BASE_TITLE;
+    else if(S.screen==='end')title='Thank You · '+BASE_TITLE;
+    if(document.title!==title)document.title=title;
+  }
+
+  function render(){
+    var k=key(),t=k?T[k]:null;
+    document.body.setAttribute('data-screen',S.screen);
+    document.body.setAttribute('data-wt',(S.screen==='welcome'&&!T.welcome.on)?'off':'on');
+    $('#wTimerBox').classList.toggle('on',T.welcome.on);
+    $$('.screen').forEach(function(s){s.classList.toggle('active',s.id==='sc-'+S.screen);});
+    $$('[data-screen]',$('#dock')).forEach(function(bt){bt.classList.toggle('sel',bt.getAttribute('data-screen')===S.screen);});
+    $('#ctxTimer').style.display=k?'flex':'none';
+    $('#ctxEnd').style.display=S.screen==='end'?'flex':'none';
+    $('#atLbl').textContent=S.screen==='welcome'?'Starts at':'Back at';
+    $('#waNum').textContent=ADMINS[S.wa];
+    $$('input[name="wa"]').forEach(function(r){r.checked=(+r.value===S.wa);r.parentNode.classList.toggle('sel',r.checked);});
+
+    // timer controls
+    if(t){
+      $('#playBtn').firstChild.nodeValue=(t.state==='running')?'Pause':(t.state==='done'?'Restart':'Play');
+      var box=$('#presets');box.innerHTML='';
+      if(k==='welcome'){
+        var off=document.createElement('button');off.textContent='No timer';
+        off.className=t.on?'':'sel';
+        off.onclick=function(){T.welcome.on=false;T.welcome.state='idle';stopAlarm();T.welcome.remaining=T.welcome.total;render();};
+        box.appendChild(off);
+      }
+      S.presets.forEach(function(m){
+        var b=document.createElement('button');b.textContent=(m%1?m:m)+' min';
+        if(t.on&&t.sel===m)b.className='sel';
+        b.onclick=function(){setDuration(k,m,m);};
+        box.appendChild(b);
+      });
+      var cb=$('#customBtn'),isCustom=t.on&&(t.sel==='custom');
+      cb.textContent=isCustom?('Custom · '+(t.atLabel?'until '+t.atLabel:(Math.round(t.total/6)/10)+' min')):'Custom';
+      cb.classList.toggle('sel',isCustom);
+    }
+    renderDisplay();
+  }
+
+  /* ---------- screens ---------- */
+  function setScreen(name){
+    if(name===S.screen)return;
+    stopAlarm();
+    // leaving a timer screen pauses its running timer
+    var cur=key();
+    if(cur&&T[cur].state==='running'){T[cur].remaining=rem(T[cur]);T[cur].state='paused';}
+    S.screen=name;closePops();render();
+  }
+  function closePops(){
+    $('#customPop').classList.remove('open');$('#settingsPop').classList.remove('open');
+    $('#setBtn').setAttribute('aria-expanded','false');
+  }
+
+  /* ---------- wiring ---------- */
+  $$('[data-screen]',$('#dock')).forEach(function(b){b.onclick=function(){setScreen(b.getAttribute('data-screen'));};});
+  $('#playBtn').onclick=function(){var k=key();if(k)toggle(k);};
+  $('#resetBtn').onclick=function(){var k=key();if(k)reset(k);};
+  $('#minusBtn').onclick=function(){var k=key();if(k)adjust(k,-60);};
+  $('#plusBtn').onclick=function(){var k=key();if(k)adjust(k,60);};
+
+  $('#customBtn').onclick=function(){
+    var p=$('#customPop');p.classList.toggle('open');$('#settingsPop').classList.remove('open');
+    $('#customMsg').textContent='';
+    if(p.classList.contains('open'))$('#customMin').focus();
+  };
+  $('#customSet').onclick=function(){
+    var k=key();if(!k)return;
+    var v=parseFloat($('#customMin').value);
+    if(!(v>=0.1&&v<=180)){$('#customMsg').textContent='Enter 0.1 to 180 minutes.';return;}
+    setDuration(k,v,'custom');$('#customMin').value='';closePops();
+  };
+  $('#customMin').addEventListener('keydown',function(e){if(e.key==='Enter')$('#customSet').click();});
+  $('#atSet').onclick=function(){
+    var k=key();if(!k)return;
+    var v=$('#atTime').value;
+    if(!v){$('#customMsg').textContent='Pick a time first.';return;}
+    var p=v.split(':'),d=new Date();d.setHours(+p[0],+p[1],0,0);
+    var diff=Math.round((d.getTime()-Date.now())/1000);
+    if(diff<5){$('#customMsg').textContent='That time has already passed today.';return;}
+    if(diff>180*60){$('#customMsg').textContent='Maximum is 3 hours ahead.';return;}
+    var t=T[k];
+    if(k==='welcome')t.on=true;
+    t.total=diff;t.remaining=diff;t.sel='custom';t.state='idle';
+    start(k);t.atLabel=clock12(d);
+    closePops();render();
+  };
+  $('#atTime').addEventListener('keydown',function(e){if(e.key==='Enter')$('#atSet').click();});
+
+  $('#setBtn').onclick=function(){
+    var p=$('#settingsPop'),open=!p.classList.contains('open');
+    closePops();
+    if(open){
+      p.classList.add('open');$('#setBtn').setAttribute('aria-expanded','true');
+      $('#presetsIn').value=S.presets.join(', ');$('#headIn').value=S.heading;$('#setMsg').textContent='';
+    }
+  };
+  $('#setSave').onclick=function(){
+    var p=cleanPresets($('#presetsIn').value.split(/[\s,;]+/).filter(Boolean));
+    if(!p){$('#setMsg').textContent='Use 1 to 6 numbers between 0.1 and 180, e.g. 5, 10, 15.';return;}
+    var h=$('#headIn').value.trim()||DEFAULT_HEAD;
+    S.presets=p;S.heading=h.slice(0,24);store.set('presets',p);store.set('heading',S.heading);
+    closePops();render();
+  };
+  $('#setDef').onclick=function(){
+    S.presets=DEFAULT_PRESETS.slice();S.heading=DEFAULT_HEAD;store.set('presets',S.presets);store.set('heading',S.heading);
+    $('#presetsIn').value=S.presets.join(', ');$('#headIn').value=S.heading;$('#setMsg').textContent='Restored.';render();
+  };
+
+  $('#sound').value=SOUNDS[S.sound]?S.sound:'bell';
+  $('#sound').onchange=function(){S.sound=this.value;store.set('sound',S.sound);ensureAudio();playAlarm(true);this.blur();};
+  $('#testBtn').onclick=function(){ensureAudio();playAlarm(true);};
+  function paintMute(){$('#muteBtn').firstChild.nodeValue=S.mute?'Sound: Off':'Sound: On';$('#muteBtn').setAttribute('aria-pressed',String(S.mute));$('#muteBtn').classList.toggle('sel',S.mute);}
+  function toggleMute(){S.mute=!S.mute;store.set('mute',S.mute);if(S.mute)stopAlarm();paintMute();}
+  $('#muteBtn').onclick=toggleMute;paintMute();
+
+  function toggleFs(){
+    try{
+      if(document.fullscreenElement)document.exitFullscreen();
+      else (document.documentElement.requestFullscreen||function(){}).call(document.documentElement);
+    }catch(e){}
+  }
+  $('#fsBtn').onclick=toggleFs;
+  document.addEventListener('fullscreenchange',function(){$('#fsBtn').firstChild.nodeValue=document.fullscreenElement?'Exit fullscreen':'Fullscreen';});
+
+  $$('input[name="wa"]').forEach(function(r){r.onchange=function(){S.wa=+r.value;store.set('wa',S.wa);render();r.blur();};});
+
+  // Unlock audio on the first interaction; drop focus after mouse clicks so Space never double-fires a button
+  document.addEventListener('click',function(e){ensureAudio();if(e.detail>0&&e.target.tagName==='BUTTON')e.target.blur();},true);
+
+  /* ---------- keyboard shortcuts ---------- */
+  function isTyping(el){
+    if(!el||!el.tagName)return false;
+    if(el.tagName==='TEXTAREA'||el.tagName==='SELECT')return true;
+    return el.tagName==='INPUT'&&['radio','checkbox','button'].indexOf(el.type)<0;
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    if(isTyping(e.target))return;
+    var k=key(),c=e.key,handled=true;
+    if(c===' '||c==='Spacebar'){if(k)toggle(k);}
+    else if(c==='r'||c==='R'){if(k)reset(k);}
+    else if(c==='+'||c==='='){if(k)adjust(k,60);}
+    else if(c==='-'||c==='_'){if(k)adjust(k,-60);}
+    else if(c==='w'||c==='W')setScreen('welcome');
+    else if(c==='b'||c==='B')setScreen('break');
+    else if(c==='q'||c==='Q')setScreen('questions');
+    else if(c==='e'||c==='E')setScreen('end');
+    else if(c==='f'||c==='F')toggleFs();
+    else if(c==='m'||c==='M')toggleMute();
+    else if((c==='1'||c==='2')&&S.screen==='end'){S.wa=+c-1;store.set('wa',S.wa);render();}
+    else if(c==='Escape')closePops();
+    else handled=false;
+    if(handled)e.preventDefault();
+  });
+  document.addEventListener('keyup',function(e){
+    if(e.key===' '&&!isTyping(e.target))e.preventDefault();
+  });
+
+  /* ---------- screen wake lock (keeps the laptop awake while presenting) ---------- */
+  var wl=null;
+  function lockScreen(){
+    try{
+      if('wakeLock' in navigator&&document.visibilityState==='visible'&&!wl){
+        navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){wl=null;});}).catch(function(){wl=null;});
+      }
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){lockScreen();tick();}});
+  lockScreen();
+
+  /* ---------- URL parameters: ?screen=break&min=10&title=Lunch&wa=2 ---------- */
+  try{
+    var q=new URLSearchParams(location.search);
+    var sc=q.get('screen');
+    if(['welcome','break','questions','end'].indexOf(sc)>=0)S.screen=sc;
+    var ttl=q.get('title');if(ttl)S.heading=ttl.slice(0,24);
+    var wa=q.get('wa');if(wa==='1'||wa==='2')S.wa=+wa-1;
+    var mn=parseFloat(q.get('min'));
+    if(mn>=0.1&&mn<=180){
+      var kk=(S.screen==='welcome')?'welcome':'brk';
+      setDuration(kk,mn,S.presets.indexOf(mn)>=0?mn:'custom');
+    }
+  }catch(e){}
+
+  setInterval(tick,250);
+  render();
+})();
+</script>
+</body>
+</html>
